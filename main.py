@@ -2,20 +2,20 @@ import http.client
 import xml.etree.ElementTree as ET
 
 # GET request
-connGet = http.client.HTTPConnection("urlAddress", 8080)
+conn_get = http.client.HTTPConnection("urlAddress", 8080)
 
-headersGet = {
+headers_get = {
     "Accept": "application/xml"
 }
 
 payload = ""
 
-connGet.request("GET", "biprws/logon/long", body=None, headers=headersGet)
-responseGet = connGet.getresponse()
-resultGet = responseGet.read()
-print(resultGet.decode("utf-8"))
+conn_get.request("GET", "biprws/logon/long", body=None, headers=headers_get)
+response_get = conn_get.getresponse()
+result_get = response_get.read()
+print(result_get.decode("utf-8"))
 
-root = ET.fromstring(resultGet)
+root = ET.fromstring(result_get)
 print(root)
 
 for child in root:
@@ -24,46 +24,46 @@ for child in root:
 root[0].text = 'yourUsername'
 root[3].text = 'yourPassword'
 
-newPayload = ET.tostring(root, encoding='utf-8').decode('utf-8')
-print(newPayload)
+new_payload = ET.tostring(root, encoding='utf-8').decode('utf-8')
+print(new_payload)
 
 # POST request
-connPost = http.client.HTTPConnection("urlAddress", 8080)
+conn_post = http.client.HTTPConnection("urlAddress", 8080)
 
-headersPost = {
+headers_post = {
     "Content-Type": "application/xml"
 }
 
-connPost.request("POST", "biprws/logon/long", newPayload, headersPost)
-responsePost = connPost.getresponse()
-resultPost = responsePost.read()
-print(resultPost.decode("utf-8"))
+conn_post.request("POST", "biprws/logon/long", new_payload, headers_post)
+response_post = conn_post.getresponse()
+result_post = response_post.read()
+print(result_post.decode("utf-8"))
 
-rootToken = ET.fromstring(resultPost)
-print(rootToken)
+root_token = ET.fromstring(result_post)
+print(root_token)
 
-for child in rootToken:
+for child in root_token:
     print(child.tag, child.attrib, child.text)
 
-token = rootToken[3][0][0].text
+token = root_token[3][0][0].text
 print(token)
 
 # Get ALL Documents and Folders per Folder knowing Folder Id
-connGetDocsAndFolders = http.client.HTTPConnection("urlAddress", 8080)
+conn_get_docs_folders = http.client.HTTPConnection("urlAddress", 8080)
 
-headersGetDocsAndFolders = {
+headers_get_docs_folders = {
     "Accept": "application/xml",
     "Content-Type": "application/xml",
     "X-SAP-LogonToken": token,
     "Authorization": "Bearer X-SAP-LogonToken"
 }
-print(headersGetDocsAndFolders)
+print(headers_get_docs_folders)
 
-payloadXml = "<search>\n <folder>\n <folderId>yourFolderId</folderId>\n <folder>\n <document>\n <folderId>yourFolderId</folderId>\n </document>\n</search>"
-print(payloadXml)
+payload_xml = "<search>\n <folder>\n <folderId>yourFolderId</folderId>\n <folder>\n <document>\n <folderId>yourFolderId</folderId>\n </document>\n</search>"
+print(payload_xml)
 
-connGetDocsAndFolders.request("POST", "/biprws/raylight/v1/searches", payloadXml, headersGetDocsAndFolders)
-responseGetDocsAndFolders = connGetDocsAndFolders.getresponse()
-resultGetDocsAndFolders = responseGetDocsAndFolders.read()
-print(resultGetDocsAndFolders.decode("utf-8"))
+conn_get_docs_folders.request("POST", "/biprws/raylight/v1/searches", payload_xml, headers_get_docs_folders)
+response_get_docs_folders = conn_get_docs_folders.getresponse()
+result_get_docs_folders = response_get_docs_folders.read()
+print(result_get_docs_folders.decode("utf-8"))
 
