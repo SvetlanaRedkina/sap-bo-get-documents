@@ -67,3 +67,40 @@ response_get_docs_folders = conn_get_docs_folders.getresponse()
 result_get_docs_folders = response_get_docs_folders.read()
 print(result_get_docs_folders.decode("utf-8"))
 
+current_folder_id = 107
+
+root = ET.fromstring(result_get_docs_folders)
+print(root)
+for child in root:
+    print(child.tag, child.attrib, child.text, child.find("id").text, child.find("name").text)
+
+# Get all Documents, including Documents of the Child-Folders
+def post_searches(parent_folder_id, headers):
+    conn = http.client.HTTPConnection("urlAddress", 8080)
+
+    payload = f"<search>\n <folder>\n <folderId>parent_folder_id</folderId>\n <folder>\n <document>\n <folderId>parent_folder_id</folderId>\n </document>\n</search>"
+    conn.request("POST", "/biprws/raylight/v1/searches", payload, headers)
+    response = conn.getresponse()
+    response_bytes = response.read()
+    result = response_bytes.decode("utf-8")
+
+    root = ET.fromstring(result)
+
+    for child in root:
+        if child.tag == "folder":
+            folder_id = child.find("id").text
+            print(child.tag, folder_id)
+            post_searches(folder_id, headers_get_docs_folders)
+
+        elif child.tag == "document":
+            document_id = child.find("id").text
+            print(child.tag, document_id)
+
+        else:
+            print("Unknown tag type")
+
+# Call the function
+post_searches(current_folder_id, headers_get_docs_folders)
+
+
+
