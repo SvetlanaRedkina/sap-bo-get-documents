@@ -74,11 +74,26 @@ print(root)
 for child in root:
     print(child.tag, child.attrib, child.text, child.find("id").text, child.find("name").text)
 
+def process_item(item, folder_ids, document_ids):
+    if item.tag == "folder":
+        folder_id = item.find("id").text
+        folder_ids.append(folder_id)
+        print(item.tag, folder_id)
+        for child in item:
+            process_item(child)
+    elif item.tag == "document":
+        document_id = item.find("id").text
+        document_ids.append(document_id)
+        print(item.tag, document_id)
+    else:
+        item_id = item.find("id").text
+        print(item.tag, item_id)
+
 # Get all Documents, including Documents of the Child-Folders
 def post_searches(parent_folder_id, headers):
     conn = http.client.HTTPConnection("urlAddress", 8080)
 
-    payload = f"<search>\n <folder>\n <folderId>parent_folder_id</folderId>\n <folder>\n <document>\n <folderId>parent_folder_id</folderId>\n </document>\n</search>"
+    payload = f"<search>\n	<folder>\n		<folderId>parent_folder_id</folderId>\n	</folder>\n	<document>\n		<folderId>parent_folder_id</folderId>\n	</document>\n</search>"
     conn.request("POST", "/biprws/raylight/v1/searches", payload, headers)
     response = conn.getresponse()
     response_bytes = response.read()
@@ -86,21 +101,18 @@ def post_searches(parent_folder_id, headers):
 
     root = ET.fromstring(result)
 
-    for child in root:
-        if child.tag == "folder":
-            folder_id = child.find("id").text
-            print(child.tag, folder_id)
-            post_searches(folder_id, headers_get_docs_folders)
+    folder_ids = []
+    document_ids = []
 
-        elif child.tag == "document":
-            document_id = child.find("id").text
-            print(child.tag, document_id)
+   
+    process_item(root, folder_ids, document_ids)
 
-        else:
-            print("Unknown tag type")
+    return folder_ids, document_ids
 
 # Call the function
-post_searches(current_folder_id, headers_get_docs_folders)
+folder_ids, document_ids = post_searches(current_folder_id, headers_get_docs_folders)
 
+print("Folder IDs:", folder_ids)
+print("Document IDs:", document_ids)
 
 
