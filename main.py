@@ -59,7 +59,8 @@ headers_get_docs_folders = {
 }
 print(headers_get_docs_folders)
 
-payload_xml = "<search>\n <folder>\n <folderId>yourFolderId</folderId>\n <folder>\n <document>\n <folderId>yourFolderId</folderId>\n </document>\n</search>"
+payload_xml = ("<search>\n <folder>\n <folderId>yourFolderId</folderId>\n <folder>\n <document>\n "
+               "<folderId>yourFolderId</folderId>\n </document>\n</search>")
 print(payload_xml)
 
 conn_get_docs_folders.request("POST", "/biprws/raylight/v1/searches", payload_xml, headers_get_docs_folders)
@@ -74,26 +75,16 @@ print(root)
 for child in root:
     print(child.tag, child.attrib, child.text, child.find("id").text, child.find("name").text)
 
-def process_item(item, folder_ids, document_ids):
-    if item.tag == "folder":
-        folder_id = item.find("id").text
-        folder_ids.append(folder_id)
-        print(item.tag, folder_id)
-        for child in item:
-            process_item(child)
-    elif item.tag == "document":
-        document_id = item.find("id").text
-        document_ids.append(document_id)
-        print(item.tag, document_id)
-    else:
-        item_id = item.find("id").text
-        print(item.tag, item_id)
+folder_ids = []
+document_ids = []
+item_ids = []
 
 # Get all Documents, including Documents of the Child-Folders
 def post_searches(parent_folder_id, headers):
     conn = http.client.HTTPConnection("urlAddress", 8080)
 
-    payload = f"<search>\n	<folder>\n		<folderId>parent_folder_id</folderId>\n	</folder>\n	<document>\n		<folderId>parent_folder_id</folderId>\n	</document>\n</search>"
+    payload = (f"<search>\n <folder>\n <folderId>{parent_folder_id}</folderId>\n <folder>\n <document>\n "
+               f"<folderId>{parent_folder_id}</folderId>\n </document>\n</search>")
     conn.request("POST", "/biprws/raylight/v1/searches", payload, headers)
     response = conn.getresponse()
     response_bytes = response.read()
@@ -101,18 +92,24 @@ def post_searches(parent_folder_id, headers):
 
     root = ET.fromstring(result)
 
-    folder_ids = []
-    document_ids = []
+    for item in root:
+        if item.tag == "folder":
+            folder_id = item.find("id").text
+            folder_ids.append(folder_id)
+            print(item.tag, folder_id)
+            post_searches(folder_id, headers)
+        elif item.tag == "document":
+            document_id = item.find("id").text
+            document_ids.append(document_id)
+            print(item.tag, document_id)
+        else:
+            item_id = item.find("id").text
+            item_ids.append(item_id)
+            print(item.tag, item_id)
 
-   
-    process_item(root, folder_ids, document_ids)
-
-    return folder_ids, document_ids
-
-# Call the function
-folder_ids, document_ids = post_searches(current_folder_id, headers_get_docs_folders)
-
-print("Folder IDs:", folder_ids)
-print("Document IDs:", document_ids)
+    # Call the function and print out the result
+    post_searches(current_folder_id, headers_get_docs_folders)
+    print(folder_ids)
+    print(document_ids)
 
 
