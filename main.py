@@ -76,7 +76,9 @@ for child in root:
     print(child.tag, child.attrib, child.text, child.find("id").text, child.find("name").text)
 
 folder_ids = []
+folder_names = []
 document_ids = []
+document_names = []
 item_ids = []
 
 # Get all Documents, including Documents of the Child-Folders
@@ -96,12 +98,16 @@ def post_searches(parent_folder_id, headers):
         if item.tag == "folder":
             folder_id = item.find("id").text
             folder_ids.append(folder_id)
-            print(item.tag, folder_id)
+            folder_name = item.find("name").text
+            folder_names.append(folder_name)
+            print(item.tag, folder_id, folder_name)
             post_searches(folder_id, headers)
         elif item.tag == "document":
             document_id = item.find("id").text
+            document_name = item.find("name").text
+            document_names.append(document_name)
             document_ids.append(document_id)
-            print(item.tag, document_id)
+            print(item.tag, document_id, document_name)
         else:
             item_id = item.find("id").text
             item_ids.append(item_id)
@@ -110,6 +116,61 @@ def post_searches(parent_folder_id, headers):
     # Call the function and print out the result
     post_searches(current_folder_id, headers_get_docs_folders)
     print(folder_ids)
+    print(folder_names)
     print(document_ids)
+    print(document_names)
 
+    # Get Universes (Data Sources) names
+    conn_dataproviders = http.client.HTTPConnection("urlAddress", 8080)
+    headers_dataproviders = {
+        "Accept": "application/xml",
+        "X-SAP-LogonToken": token,
+        "Authorization": "Bearer X-SAP-LogonToken"
+    }
+    payload_dataproviders = ""
+
+    print('start something')
+
+    for document_id in document_ids:
+        print("start 1st loop", document_id)
+        url = f"/biprws/raylight/v1/documents/{document_id}/dataproviders"
+        conn_dataproviders.request("GET", url, payload_dataproviders, headers_dataproviders)
+        response_dataproviders = conn_dataproviders.getresponse()
+        result_dataproviders = response_dataproviders.read()
+
+        root_dataproviders = ET.fromstring(result_dataproviders)
+
+        dataprovider_ids = []
+
+        universes = []
+
+        for r in root_dataproviders.findall('dataprovider'):
+            print('start 2nd loop')
+            dataprovider_id = r.find('id')
+            print(dataprovider_id.text)
+            if dataprovider_id is not None:
+                dataprovider_ids.append(dataprovider_id.text)
+
+                conn_dataproviders_ids = http.client.HTTPConnection("urlAddress", 8080)
+                headers_dataproviders_ids = {
+                    "Accept": "application/xml",
+                    "X-SAP-LogonToken": token,
+                    "Authorization": "Bearer X-SAP-LogonToken"
+                }
+                payload_dataproviders_ids = ""
+
+                url_i = f"/biprws/raylight/v1/documents/{document_id}/dataproviders/{dataprovider_id.text}"
+                print(url_i)
+                conn_dataproviders_ids.request("GET", url_i, payload_dataproviders_ids, headers_dataproviders_ids)
+                response_dataproviders_ids = conn_dataproviders_ids.getresponse()
+                result_dataproviders_ids = response_dataproviders_ids.read()
+
+                root_ids = ET.fromstring(result_dataproviders_ids)
+
+                for u in root_ids.findall('dataSourceName'):
+                    print('start 3rd loop', u.text)
+                    if u is not None:
+                        universes.append(u.text)
+
+        print(document_id, dataprovider_ids, universes)
 
