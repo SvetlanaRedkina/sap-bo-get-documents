@@ -1,5 +1,6 @@
 import http.client
 import xml.etree.ElementTree as ET
+import pandas as pd
 
 # GET request
 conn_get = http.client.HTTPConnection("urlAddress", 8080)
@@ -80,6 +81,7 @@ folder_names = []
 document_ids = []
 document_names = []
 item_ids = []
+document_dict = {}
 
 
 # Get all Documents, including Documents of the Child-Folders
@@ -121,11 +123,106 @@ print(folder_names)
 print(document_ids)
 print(document_names)
 
-# Get Universes (Data Sources) names
-conn_dataproviders = http.client.HTTPConnection("urlAddress", 8080)
+def post_searches_dict(parent_folder_id, headers):
+    conn = http.client.HTTPConnection("urlAddress", 8080)
+
+    payload = f"<search>\n <folder>\n <folderId>{parent_folder_id}</folderId>\n <folder>\n <document>\n <folderId>{parent_folder_id}</folderId>\n </document>\n</search>"
+    conn.request("POST", "/biprws/raylight/v1/searches", payload, headers)
+    response = conn.getresponse()
+    response_bytes = response.read()
+    result = response_bytes.decode("utf-8")
+
+    root = ET.fromstring(result)
+
+    for item in root:
+        if item.tag == "folder":
+            folder_id = item.find("id").text
+            folder_name = item.find("name").text
+            print(item.tag, folder_id, folder_name)
+            post_searches_dict(folder_id, headers)
+        elif item.tag == "document":
+            document_id = item.find("id").text
+            document_name = item.find("name").text
+            print(item.tag, document_id, document_name)
+            document_ids.append(document_id)
+            document_names.append(document_name)
+            document_dict[document_id] = document_name
+        else:
+            item_id = item.find("id").text
+            print(item.tag, item_id)
+
+post_searches_dict(current_folder_id, headers_get_docs_folders)
+
+print(folder_ids)
+print(folder_names)
+print(document_ids)
+print(document_names)
+print(document_dict)
+
+
+df = pd.DataFrame(list(document_dict.items()), columns=['Document ID', 'Document Name']).set_index('Document ID')
+print(df)
+
+all_dataprovider_ids = []
+all_universes = []
+
+conn_dataproviders_dict = http.client.HTTPConnection("urlAddress", 8080)
 headers_dataproviders = {
     "Accept": "application/xml",
     "X-SAP-LogonToken": token,
     "Authorization": "Bearer X-SAP-LogonToken"
 }
 payload_dataproviders = ""
+
+for document_id in document_ids:
+    url = f"/biprws/raylight/v1/documents/{document_id}/dataproviders"
+    conn_dataproviders_dict.request("GET", url, payload_dataproviders, headers_dataproviders)
+    response_dataproviders = conn_dataproviders_dict.getresponse()
+    result_dataproviders = response_dataproviders.read()
+
+    root = ET.fromstring(result_dataproviders)
+
+    dataprovider_ids = []
+    universes = []
+
+    for r in root.findall('dataprovider'):
+        dataprovider_id = r.find('id')
+        if dataprovider_id is not None:
+            dataprovider_ids.append(dataprovider_id.text)
+
+            conn_dataprovider_ids = http.client.HTTPConnection("urlAddress", 8080)
+            headers_dataproviders_ids = {
+                "Accept": "application/xml",
+                "X-SAP-LogonToken": token,
+                "Authorization": "Bearer X-SAP-LogonToken"
+            }
+            payload_dataproviders_ids = ""
+
+            url_i = f"/biprws/raylight/v1/documents/{document_id}/dataproviders/{dataprovider_id.text}"
+            conn_dataprovider_ids.request("GET", url_i, payload_dataproviders_ids, headers_dataproviders_ids)
+            response_dataproviders_ids = conn_dataprovider_ids.getresponse()
+            result_dataproviders_ids = response_dataproviders_ids.read()
+            root_ids = ET.fromstring(result_dataproviders_ids)
+
+            for u in root_ids.findall('dataSourceName'):
+                if u is not None:
+                    universes.append(u.text)
+
+    all_dataprovider_ids.append(dataprovider_ids)
+    all_universes.append(universes)
+
+combined_dict = {
+    "document_ids": document_ids,
+    "dataprovider_ids": all_dataprovider_ids,
+    "universes": all_universes
+}
+
+print(combined_dict)
+
+df1 = pd.DataFrame(combined_dict)
+print(df1)
+
+result = pd.merge(df, df1, left_on = "Document ID", right_on = "document_ids", how = "inner")
+result.head(15)
+result.to_excel(f"your directory", index=False)
+
